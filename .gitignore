@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.pyright/
+
+# wareq runtime artifacts
+.wareq/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
