@@ -39,7 +39,8 @@ _Avoid_: return code, status code
 ## Accepted decisions
 
 - Python >=3.11, managed with `uv`; `uv.lock` is committed.
-- `src/` layout, Typer CLI, pytest, Ruff, Pyright.
+- `src/` layout, Typer CLI, pytest, Ruff, and BasedPyright.
+- BasedPyright analyzes the project `.venv` and the `src/` and `tests/` directories via `[tool.basedpyright]` in `pyproject.toml`.
 - DuckDB-first; Snowflake/PySpark deferred from v1.
 - YAML-in-Git contracts in the same repository.
 - SQLite result store with idempotent writes keyed by `run_id`.

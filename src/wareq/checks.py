@@ -10,6 +10,10 @@ import duckdb
 CHECK_NAME = "orders.customer_id_completeness"
 
 
+class CheckError(RuntimeError):
+    """Raised when a check cannot produce a valid result."""
+
+
 @dataclass(frozen=True)
 class CheckResult:
     check_name: str
@@ -30,7 +34,7 @@ def run_completeness_check(database_path: Path) -> CheckResult:
     with duckdb.connect(str(resolved_path), read_only=True) as connection:
         row = connection.execute("SELECT COUNT(*) FROM orders WHERE customer_id IS NULL").fetchone()
     if row is None or not isinstance(row[0], int):
-        raise RuntimeError("Completeness query returned an invalid result")
+        raise CheckError("Completeness query returned an invalid result")
     missing_count = row[0]
     return CheckResult(
         check_name=CHECK_NAME,

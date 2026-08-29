@@ -150,3 +150,17 @@ def test_check_without_db_returns_two() -> None:
     result = runner.invoke(app, ["check"])
 
     assert result.exit_code == 2
+
+
+def test_check_invalid_results_database_returns_two(tmp_path: Path) -> None:
+    database = tmp_path / "orders.duckdb"
+    make_database(database, [(1,)])
+    results_directory = tmp_path / "results-directory"
+    results_directory.mkdir()
+
+    result = runner.invoke(
+        app, ["check", "--db", str(database), "--results-db", str(results_directory)]
+    )
+
+    assert result.exit_code == 2
+    assert "error" in result.stderr.lower()

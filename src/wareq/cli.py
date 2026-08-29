@@ -9,7 +9,7 @@ import duckdb
 import typer
 
 from wareq import __version__
-from wareq.checks import run_completeness_check
+from wareq.checks import CheckError, run_completeness_check
 from wareq.results import save_result
 
 app = typer.Typer(help="wareq: CLI-first, DuckDB-first data-quality engine.", no_args_is_help=True)
@@ -36,7 +36,7 @@ def check(
     try:
         result = run_completeness_check(db)
         save_result(results_db, result)
-    except (OSError, duckdb.Error, sqlite3.Error) as error:
+    except (CheckError, OSError, duckdb.Error, sqlite3.Error) as error:
         typer.echo(f"error: {error}", err=True)
         raise typer.Exit(code=2) from error
     typer.echo(json.dumps(result.as_dict(), sort_keys=True))
