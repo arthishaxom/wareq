@@ -28,9 +28,10 @@ def run_completeness_check(database_path: Path) -> CheckResult:
     resolved_path = database_path.expanduser().resolve(strict=True)
     run_id = sha256(f"{resolved_path}\n{CHECK_NAME}".encode()).hexdigest()
     with duckdb.connect(str(resolved_path), read_only=True) as connection:
-        missing_count = connection.execute(
-            "SELECT COUNT(*) FROM orders WHERE customer_id IS NULL"
-        ).fetchone()[0]
+        row = connection.execute("SELECT COUNT(*) FROM orders WHERE customer_id IS NULL").fetchone()
+    if row is None or not isinstance(row[0], int):
+        raise RuntimeError("Completeness query returned an invalid result")
+    missing_count = row[0]
     return CheckResult(
         check_name=CHECK_NAME,
         dataset="orders",

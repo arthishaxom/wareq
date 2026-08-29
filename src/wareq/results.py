@@ -10,7 +10,7 @@ def save_result(database_path: Path, result: CheckResult) -> None:
     """Create the result store and idempotently save one result."""
     database_path.expanduser().parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(database_path.expanduser()) as connection:
-        connection.execute(
+        _ = connection.execute(
             """
             CREATE TABLE IF NOT EXISTS results (
                 run_id TEXT PRIMARY KEY,
@@ -22,7 +22,7 @@ def save_result(database_path: Path, result: CheckResult) -> None:
             )
             """
         )
-        connection.execute(
+        _ = connection.execute(
             """
             INSERT INTO results (run_id, check_name, dataset, missing_count, passed, timestamp)
             VALUES (?, ?, ?, ?, ?, ?)

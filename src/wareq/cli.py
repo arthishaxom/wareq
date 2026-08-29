@@ -3,6 +3,7 @@
 import json
 import sqlite3
 from pathlib import Path
+from typing import Annotated
 
 import duckdb
 import typer
@@ -12,8 +13,7 @@ from wareq.checks import run_completeness_check
 from wareq.results import save_result
 
 app = typer.Typer(help="wareq: CLI-first, DuckDB-first data-quality engine.", no_args_is_help=True)
-DB_OPTION = typer.Option(..., "--db", exists=False, dir_okay=False)
-RESULTS_DB_OPTION = typer.Option(Path(".wareq/results.db"), "--results-db", dir_okay=False)
+DEFAULT_RESULTS_DB = Path(".wareq/results.db")
 
 
 @app.callback()
@@ -29,8 +29,8 @@ def version() -> None:
 
 @app.command()
 def check(
-    db: Path = DB_OPTION,
-    results_db: Path = RESULTS_DB_OPTION,
+    db: Annotated[Path, typer.Option("--db", exists=False, dir_okay=False)],
+    results_db: Annotated[Path, typer.Option("--results-db", dir_okay=False)] = DEFAULT_RESULTS_DB,
 ) -> None:
     """Run the orders.customer_id completeness check."""
     try:

@@ -3,8 +3,10 @@
 import json
 import sqlite3
 from pathlib import Path
+from typing import cast
 
 import duckdb
+from _pytest.monkeypatch import MonkeyPatch
 from typer.testing import CliRunner
 
 from wareq import __version__
@@ -21,9 +23,9 @@ def test_version() -> None:
 
 def make_database(path: Path, rows: list[tuple[object]]) -> None:
     with duckdb.connect(str(path)) as connection:
-        connection.execute("CREATE TABLE orders (customer_id INTEGER)")
+        _ = connection.execute("CREATE TABLE orders (customer_id INTEGER)")
         if rows:
-            connection.executemany("INSERT INTO orders VALUES (?)", rows)
+            _ = connection.executemany("INSERT INTO orders VALUES (?)", rows)
 
 
 def test_check_passes_and_prints_structured_result(tmp_path: Path) -> None:
@@ -35,7 +37,7 @@ def test_check_passes_and_prints_structured_result(tmp_path: Path) -> None:
     )
 
     assert result.exit_code == 0
-    output = json.loads(result.stdout)
+    output = cast(dict[str, object], json.loads(result.stdout))
     assert output["check_name"] == "orders.customer_id_completeness"
     assert output["dataset"] == "orders"
     assert output["missing_count"] == 0
@@ -53,7 +55,7 @@ def test_check_fails_when_customer_id_is_null(tmp_path: Path) -> None:
     )
 
     assert result.exit_code == 1
-    output = json.loads(result.stdout)
+    output = cast(dict[str, object], json.loads(result.stdout))
     assert output["missing_count"] == 2
     assert output["passed"] is False
 
@@ -79,7 +81,8 @@ def test_check_configuration_error_returns_two(tmp_path: Path) -> None:
 
 def test_check_missing_table_returns_two(tmp_path: Path) -> None:
     database = tmp_path / "orders.duckdb"
-    duckdb.connect(str(database)).close()
+    with duckdb.connect(str(database)):
+        pass
 
     result = runner.invoke(
         app, ["check", "--db", str(database), "--results-db", str(tmp_path / "results.db")]
@@ -92,7 +95,7 @@ def test_check_missing_table_returns_two(tmp_path: Path) -> None:
 def test_check_missing_customer_id_column_returns_two(tmp_path: Path) -> None:
     database = tmp_path / "orders.duckdb"
     with duckdb.connect(str(database)) as connection:
-        connection.execute("CREATE TABLE orders (order_id INTEGER)")
+        _ = connection.execute("CREATE TABLE orders (order_id INTEGER)")
 
     result = runner.invoke(
         app, ["check", "--db", str(database), "--results-db", str(tmp_path / "results.db")]
@@ -131,7 +134,7 @@ def test_failed_check_is_persisted_idempotently(tmp_path: Path) -> None:
         assert connection.execute("SELECT missing_count, passed FROM results").fetchone() == (1, 0)
 
 
-def test_run_id_is_stable_for_equivalent_paths(tmp_path: Path, monkeypatch) -> None:
+def test_run_id_is_stable_for_equivalent_paths(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     database = tmp_path / "orders.duckdb"
     make_database(database, [(1,)])
     results_db = tmp_path / "results.db"
