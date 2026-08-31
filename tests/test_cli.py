@@ -14,6 +14,8 @@ from wareq.cli import app
 
 runner = CliRunner()
 
+FIXTURES = Path(__file__).parent / "fixtures"
+
 
 def test_version() -> None:
     result = runner.invoke(app, ["version"])
@@ -21,16 +23,24 @@ def test_version() -> None:
     assert f"wareq {__version__}" in result.stdout
 
 
-def make_database(path: Path, rows: list[tuple[object]]) -> None:
+def make_database(path: Path, fixture_name: str) -> None:
+    fixture = FIXTURES / fixture_name
     with duckdb.connect(str(path)) as connection:
-        _ = connection.execute("CREATE TABLE orders (customer_id INTEGER)")
-        if rows:
-            _ = connection.executemany("INSERT INTO orders VALUES (?)", rows)
+        _ = connection.execute(
+            """
+            CREATE TABLE orders AS
+            SELECT * FROM read_csv(
+                ?, header = true, nullstr = 'NULL',
+                columns = {'customer_id': 'INTEGER'}
+            )
+            """,
+            [str(fixture)],
+        )
 
 
 def test_check_passes_and_prints_structured_result(tmp_path: Path) -> None:
     database = tmp_path / "orders.duckdb"
-    make_database(database, [(1,), (2,)])
+    make_database(database, "orders-clean.csv")
 
     result = runner.invoke(
         app, ["check", "--db", str(database), "--results-db", str(tmp_path / "results.db")]
@@ -48,7 +58,7 @@ def test_check_passes_and_prints_structured_result(tmp_path: Path) -> None:
 
 def test_check_fails_when_customer_id_is_null(tmp_path: Path) -> None:
     database = tmp_path / "orders.duckdb"
-    make_database(database, [(1,), (None,), (None,)])
+    make_database(database, "orders-with-nulls.csv")
 
     result = runner.invoke(
         app, ["check", "--db", str(database), "--results-db", str(tmp_path / "results.db")]
@@ -62,7 +72,7 @@ def test_check_fails_when_customer_id_is_null(tmp_path: Path) -> None:
 
 def test_check_empty_orders_passes(tmp_path: Path) -> None:
     database = tmp_path / "orders.duckdb"
-    make_database(database, [])
+    make_database(database, "orders-empty.csv")
 
     result = runner.invoke(
         app, ["check", "--db", str(database), "--results-db", str(tmp_path / "results.db")]
@@ -108,7 +118,7 @@ def test_check_missing_customer_id_column_returns_two(tmp_path: Path) -> None:
 def test_check_upserts_one_result_on_rerun(tmp_path: Path) -> None:
     database = tmp_path / "orders.duckdb"
     results_db = tmp_path / "results.db"
-    make_database(database, [(1,)])
+    make_database(database, "orders-clean.csv")
     args = ["check", "--db", str(database), "--results-db", str(results_db)]
 
     first = runner.invoke(app, args)
@@ -122,7 +132,7 @@ def test_check_upserts_one_result_on_rerun(tmp_path: Path) -> None:
 def test_failed_check_is_persisted_idempotently(tmp_path: Path) -> None:
     database = tmp_path / "orders.duckdb"
     results_db = tmp_path / "results.db"
-    make_database(database, [(None,)])
+    make_database(database, "orders-with-nulls.csv")
     args = ["check", "--db", str(database), "--results-db", str(results_db)]
 
     first = runner.invoke(app, args)
@@ -131,12 +141,12 @@ def test_failed_check_is_persisted_idempotently(tmp_path: Path) -> None:
     assert first.exit_code == second.exit_code == 1
     with sqlite3.connect(results_db) as connection:
         assert connection.execute("SELECT COUNT(*) FROM results").fetchone() == (1,)
-        assert connection.execute("SELECT missing_count, passed FROM results").fetchone() == (1, 0)
+        assert connection.execute("SELECT missing_count, passed FROM results").fetchone() == (2, 0)
 
 
 def test_run_id_is_stable_for_equivalent_paths(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     database = tmp_path / "orders.duckdb"
-    make_database(database, [(1,)])
+    make_database(database, "orders-clean.csv")
     results_db = tmp_path / "results.db"
 
     absolute = runner.invoke(app, ["check", "--db", str(database), "--results-db", str(results_db)])
@@ -154,7 +164,7 @@ def test_check_without_db_returns_two() -> None:
 
 def test_check_invalid_results_database_returns_two(tmp_path: Path) -> None:
     database = tmp_path / "orders.duckdb"
-    make_database(database, [(1,)])
+    make_database(database, "orders-clean.csv")
     results_directory = tmp_path / "results-directory"
     results_directory.mkdir()
 
