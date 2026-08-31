@@ -20,6 +20,9 @@ uv run ruff check .
 uv run pyright
 ```
 
+For the manual installed-CLI smoke test, see
+[Manual CLI smoke QA](docs/manual-cli-smoke-qa.md).
+
 ## License
 
 Apache-2.0
