@@ -13,11 +13,12 @@ Early development. The first vertical slice (a local DuckDB completeness check e
 Requires Python >=3.11 and [uv](https://docs.astral.sh/uv/).
 
 ```bash
-uv sync
+uv sync --locked
 uv run pytest
 uv run ruff format --check .
 uv run ruff check .
-uv run pyright
+uv run basedpyright
+uv build
 ```
 
 For the manual installed-CLI smoke test, see
